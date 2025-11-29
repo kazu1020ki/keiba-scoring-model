@@ -1,23 +1,10 @@
 # 競馬予想モデル/course/course_score.py
-"""
-assets/shutuba_with_scores.csv を読み込み、
-コース別の重み付けによる適性スコアを付与して
-assets/shutuba_with_scores_with_course.csv に出力するスクリプト
-"""
-
+import argparse
 import pandas as pd
 from pathlib import Path
 
-# ===== パス設定 =====
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ASSETS_DIR = PROJECT_ROOT / "assets"
-ASSETS_DIR.mkdir(exist_ok=True)
-
-INPUT_CSV = ASSETS_DIR / "shutuba_with_scores.csv"
-OUTPUT_CSV = ASSETS_DIR / "shutuba_with_scores_with_course.csv"
-
-# ===== 設定 =====
-TARGET_COURSE = "東京"
+ASSETS = PROJECT_ROOT / "assets"
 
 COURSE_WEIGHTS = {
     "東京": {"speed": 1.2, "lead": 0.7, "closing": 1.4},
@@ -28,34 +15,33 @@ COURSE_WEIGHTS = {
 
 
 def main():
-    df = pd.read_csv(INPUT_CSV)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--race_id", required=True)
+    parser.add_argument("--distance", type=int, required=True)
+    parser.add_argument("--course", required=True)
+    args = parser.parse_args()
 
-    if TARGET_COURSE not in COURSE_WEIGHTS:
-        raise ValueError(f"TARGET_COURSE={TARGET_COURSE} は COURSE_WEIGHTS に定義されていません。")
+    INPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_scores.csv"
+    OUTPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_{args.course}_course.csv"
 
-    weights = COURSE_WEIGHTS[TARGET_COURSE]
+    df = pd.read_csv(INPUT)
+    weights = COURSE_WEIGHTS[args.course]
 
-    # ===== コース評価スコア算出 =====
-    def calc_course_score(row):
-        speed = row["スピードスコア"]
-        lead = row["先行力スコア"]
-        closing = row["上がり力スコア"]
-
-        if pd.isna(speed) or pd.isna(lead) or pd.isna(closing):
+    def calc(row):
+        s, l, c = row["スピードスコア"], row["先行力スコア"], row["上がり力スコア"]
+        if pd.isna(s) or pd.isna(l) or pd.isna(c):
             return None
-
-        score = (
-            speed * weights["speed"]
-            + lead * weights["lead"]
-            + closing * weights["closing"]
+        return round(
+            s * weights["speed"] +
+            l * weights["lead"] +
+            c * weights["closing"], 2
         )
-        return round(score, 2)
 
-    col_name = f"{TARGET_COURSE}適性スコア"
-    df[col_name] = df.apply(calc_course_score, axis=1)
+    col = f"{args.course}適性スコア"
+    df[col] = df.apply(calc, axis=1)
+    df.to_csv(OUTPUT, index=False, encoding="utf-8-sig")
 
-    df.to_csv(OUTPUT_CSV, index=False, encoding="utf-8-sig")
-    print(f"✅ {TARGET_COURSE}用コース適性スコア付与完了: {OUTPUT_CSV}")
+    print(f"✅ 出力: {OUTPUT}")
 
 
 if __name__ == "__main__":

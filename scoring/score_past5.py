@@ -1,69 +1,41 @@
 # 競馬予想モデル/scoring/score_past5.py
-"""
-assets/shutuba_with_past5.csv を読み込み、
-各馬のスピード・上がり力・先行力スコアを算出して
-assets/shutuba_with_scores.csv に出力するスクリプト
-"""
-
+import argparse
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
 from preprocess.utils import (
-    parse_distance,
-    time_to_seconds,
-    convert_distance_time,
-    parse_position,
+    parse_distance, time_to_seconds, convert_distance_time, parse_position
 )
 
-# ==============================
-# ▼ 手動設定
-# ==============================
-TARGET_DIST = 1600   # ← ここを予想レースの距離に変更する（例: 1200, 1800など）
-FIELD_SIZE = 16      # 想定フルゲート（通過順位の割合計算用）
-
-# ペース補正（上がり評価用）
-PACE_CORRECTION_CLOSING = {
-    "ハイ": -8,
-    "ミドル": 0,
-    "スロー": 8
-}
-
-# ペース補正（先行力評価用）
-PACE_CORRECTION_LEAD = {
-    "ハイ": 10,
-    "ミドル": 0,
-    "スロー": -10
-}
-
-# ==============================
-# ▼ パス設定
-# ==============================
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ASSETS_DIR = PROJECT_ROOT / "assets"
-ASSETS_DIR.mkdir(exist_ok=True)
+ASSETS = PROJECT_ROOT / "assets"
 
-INPUT_CSV = ASSETS_DIR / "shutuba_with_past5.csv"
-OUTPUT_CSV = ASSETS_DIR / "shutuba_with_scores.csv"
+
+PACE_CORRECTION_CLOSING = {"ハイ": -8, "ミドル": 0, "スロー": 8}
+PACE_CORRECTION_LEAD = {"ハイ": 10, "ミドル": 0, "スロー": -10}
 
 
 def main():
-    # ==============================
-    # ▼ 読み込み
-    # ==============================
-    df = pd.read_csv(INPUT_CSV)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--race_id", required=True)
+    parser.add_argument("--distance", type=int, required=True)
+    parser.add_argument("--field_size", type=int, default=16)
+    args = parser.parse_args()
+
+    INPUT = ASSETS / f"race_{args.race_id}_raw.csv"
+    OUTPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_scores.csv"
+
+    df = pd.read_csv(INPUT)
 
     speed_scores = []
     closing_scores = []
     lead_scores = []
 
     for _, row in df.iterrows():
+        speeds, closings, leads = [], [], []
 
-        speeds = []
-        closings = []
-        leads = []
-
-        for n in range(1, 5 + 1):
+        for n in range(1, 6):
             dist_raw = row.get(f"{n}走前_距離")
             time_raw = row.get(f"{n}走前_タイム")
             agari = row.get(f"{n}走前_上り")
@@ -73,48 +45,32 @@ def main():
             dist = parse_distance(dist_raw)
             time_sec = time_to_seconds(time_raw)
 
-            if dist is None or time_sec is None:
-                continue
+            if dist and time_sec:
+                adj = convert_distance_time(time_sec, dist, args.distance)
+                speeds.append(adj)
 
-            # ========= スピード評価 =========
-            adjusted_time = convert_distance_time(time_sec, dist, TARGET_DIST)
-            if adjusted_time is not None:
-                speeds.append(adjusted_time)
-
-            # ========= 上がり力評価 =========
             if not pd.isna(agari):
-                agari_val = float(agari)
-                base = 60 - agari_val   # 上がりが速いほど高評価
+                base = 60 - float(agari)
                 base += PACE_CORRECTION_CLOSING.get(pace, 0)
                 closings.append(base)
 
-            # ========= 先行力評価 =========
-            pos_val = parse_position(passage, field_size=FIELD_SIZE)
-            if pos_val is not None:
-                lead = pos_val * 100 + PACE_CORRECTION_LEAD.get(pace, 0)
-                leads.append(lead)
+            pos = parse_position(passage, field_size=args.field_size)
+            if pos is not None:
+                leads.append(pos * 100 + PACE_CORRECTION_LEAD.get(pace, 0))
 
-        # ========= 各スコア生成 =========
-        speed_score = round(200 - np.mean(speeds), 2) if speeds else None
-        closing_score = round(np.mean(closings), 2) if closings else None
-        lead_score = round(np.mean(leads), 2) if leads else None
+        speed_scores.append( round(200 - np.mean(speeds), 2) if speeds else None )
+        closing_scores.append( round(np.mean(closings), 2) if closings else None )
+        lead_scores.append( round(np.mean(leads), 2) if leads else None )
 
-        speed_scores.append(speed_score)
-        closing_scores.append(closing_score)
-        lead_scores.append(lead_score)
-
-    # ==============================
-    # ▼ 出力
-    # ==============================
-    result = pd.DataFrame({
+    out = pd.DataFrame({
         "馬名": df["馬名"],
         "スピードスコア": speed_scores,
         "上がり力スコア": closing_scores,
         "先行力スコア": lead_scores
     })
 
-    result.to_csv(OUTPUT_CSV, index=False, encoding="utf-8-sig")
-    print(f"✅ スコア算出完了: {OUTPUT_CSV}")
+    out.to_csv(OUTPUT, index=False, encoding="utf-8-sig")
+    print(f"✅ 出力: {OUTPUT}")
 
 
 if __name__ == "__main__":

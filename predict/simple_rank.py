@@ -1,30 +1,32 @@
 # 競馬予想モデル/predict/simple_rank.py
-"""
-コース適性スコア付きCSVを読み込んで、
-スコア順に並べた簡易ランキングを表示するだけのプレースホルダ。
-本格的な勝率・期待値モデルはここから拡張予定。
-"""
-
-from pathlib import Path
+import argparse
 import pandas as pd
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ASSETS_DIR = PROJECT_ROOT / "assets"
-INPUT_CSV = ASSETS_DIR / "shutuba_with_scores_with_course.csv"
-TARGET_COURSE = "東京"  # course_score.py と合わせる
+ASSETS = PROJECT_ROOT / "assets"
+
 
 def main():
-    df = pd.read_csv(INPUT_CSV)
-    col_name = f"{TARGET_COURSE}適性スコア"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--race_id", required=True)
+    parser.add_argument("--distance", type=int, required=True)
+    parser.add_argument("--course", required=True)
+    args = parser.parse_args()
 
-    if col_name not in df.columns:
-        raise ValueError(f"{col_name} 列が見つかりません。先に course/course_score.py を実行してください。")
+    INPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_{args.course}_course.csv"
 
-    df_sorted = df.sort_values(col_name, ascending=False)
+    df = pd.read_csv(INPUT)
+    col = f"{args.course}適性スコア"
 
-    print(f"=== {TARGET_COURSE}適性スコア順 ランキング ===")
-    for _, row in df_sorted.iterrows():
-        print(f"{row['馬名']:15s}  {col_name}: {row[col_name]}")
+    print(f"\n=== {args.course} 適性スコアランキング ===")
+    df = df.sort_values(col, ascending=False)
+
+    for _, r in df.iterrows():
+        print(f"{r['馬名']:15s} {col}: {r[col]}")
+
+    print("\n")
+
 
 if __name__ == "__main__":
     main()
