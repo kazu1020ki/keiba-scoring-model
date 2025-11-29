@@ -1,47 +1,71 @@
-# 競馬予想モデル/course/course_score.py
 import argparse
+import json
 import pandas as pd
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ASSETS = PROJECT_ROOT / "assets"
+CONFIG_DIR = PROJECT_ROOT / "config"
 
-COURSE_WEIGHTS = {
-    "東京": {"speed": 1.2, "lead": 0.7, "closing": 1.4},
-    "中山": {"speed": 1.0, "lead": 1.3, "closing": 0.8},
-    "京都": {"speed": 1.1, "lead": 0.9, "closing": 1.2},
-    "阪神": {"speed": 1.1, "lead": 1.1, "closing": 1.0}
-}
+
+def load_course_weight(course: str, surface: str, distance: int):
+    """コース重みを config/course_weight.json から読み込む"""
+    config_path = CONFIG_DIR / "course_weight.json"
+    with config_path.open("r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    key = f"{surface}{distance}"  # 例: "芝1600"
+
+    if course not in config:
+        raise ValueError(f"コース '{course}' の重みが config にありません")
+
+    if key not in config[course]:
+        raise ValueError(f"{course} の '{key}' 用の重み設定がありません")
+
+    return config[course][key]  # speed / lead / closing
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--race_id", required=True)
     parser.add_argument("--distance", type=int, required=True)
-    parser.add_argument("--course", required=True)
+    parser.add_argument("--course", required=True)   # 東京・中山・京都 など
+    parser.add_argument("--surface", required=True)  # 芝 or ダ
     args = parser.parse_args()
 
     INPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_scores.csv"
     OUTPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_{args.course}_course.csv"
 
     df = pd.read_csv(INPUT)
-    weights = COURSE_WEIGHTS[args.course]
 
-    def calc(row):
-        s, l, c = row["スピードスコア"], row["先行力スコア"], row["上がり力スコア"]
-        if pd.isna(s) or pd.isna(l) or pd.isna(c):
-            return None
-        return round(
-            s * weights["speed"] +
-            l * weights["lead"] +
-            c * weights["closing"], 2
-        )
+    # ------------------------------
+    #   コース重みを config から取得
+    # ------------------------------
+    weight = load_course_weight(args.course, args.surface, args.distance)
+    w_speed = weight["speed"]
+    w_lead = weight["lead"]
+    w_close = weight["closing"]
 
-    col = f"{args.course}適性スコア"
-    df[col] = df.apply(calc, axis=1)
+    # ------------------------------
+    #   最終スコア算出
+    # ------------------------------
+    scores = []
+    for _, row in df.iterrows():
+        sp = row["スピードスコア"]
+        cl = row["上がり力スコア"]
+        ld = row["先行力スコア"]
+
+        if any(pd.isna([sp, cl, ld])):
+            scores.append(None)
+            continue
+
+        final = sp * w_speed + ld * w_lead + cl * w_close
+        scores.append(round(final, 3))
+
+    df[f"{args.course}適性スコア"] = scores
     df.to_csv(OUTPUT, index=False, encoding="utf-8-sig")
 
-    print(f"✅ 出力: {OUTPUT}")
+    print(f"✅ コース適性スコアを出力: {OUTPUT}")
 
 
 if __name__ == "__main__":
