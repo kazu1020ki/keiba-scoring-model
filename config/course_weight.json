@@ -1,11 +1,13 @@
 {
     "東京": {
-        "芝1600": { "speed": 1.2, "lead": 0.7, "closing": 1.4 },
-        "芝1400": { "speed": 1.1, "lead": 0.9, "closing": 1.1 },
-        "芝2000": { "speed": 1.0, "lead": 0.8, "closing": 1.5 },
-        "ダ1600": { "speed": 1.0, "lead": 1.3, "closing": 0.7 },
-        "ダ1400": { "speed": 1.2, "lead": 1.3, "closing": 0.8 },
-        "芝2400": { "speed": 1.3, "lead": 0.5, "closing": 1.5}
+        "芝1400": { "speed": 1.20, "lead": 1.05, "closing": 1.25 },
+        "芝1600": { "speed": 1.25, "lead": 1.05, "closing": 1.30 },
+        "芝1800": { "speed": 1.20, "lead": 1.10, "closing": 1.30 },
+        "芝2000": { "speed": 1.20, "lead": 1.10, "closing": 1.25 },
+        "芝2400": { "speed": 1.15, "lead": 1.05, "closing": 1.30 },
+        "ダ1400": { "speed": 1.20, "lead": 1.15, "closing": 0.95 },
+        "ダ1600": { "speed": 1.25, "lead": 1.10, "closing": 1.20 },
+        "ダ2100": { "speed": 1.30, "lead": 1.20, "closing": 0.90 }
     },
     "中山": {
         "芝1200": { "speed": 1.10, "lead": 1.35, "closing": 0.65 },
@@ -17,10 +19,19 @@
         "芝3600": { "speed": 0.90, "lead": 1.45, "closing": 0.75 }
     },
     "京都": {
-        "芝1800": { "speed": 1.1, "lead": 1.0, "closing": 1.2 },
-        "芝1200": { "speed": 1.1, "lead": 1.0, "closing": 1.1 },
-        "ダ1800": { "speed": 1.0, "lead": 1.1, "closing": 1.1 },
-        "ダ1400": { "speed": 1.1, "lead": 1.3, "closing": 0.7 }
+        "芝1200": { "speed": 1.15, "lead": 1.35, "closing": 0.70 },
+        "芝1400": { "speed": 1.15, "lead": 1.25, "closing": 0.75 },
+        "芝1600": { "speed": 1.20, "lead": 1.20, "closing": 0.80 },
+        "芝1800": { "speed": 1.20, "lead": 1.30, "closing": 0.70 },
+        "芝2000": { "speed": 1.20, "lead": 1.30, "closing": 0.70 },
+        "芝2200": { "speed": 1.15, "lead": 1.25, "closing": 0.80 },
+        "芝2400": { "speed": 1.15, "lead": 1.30, "closing": 0.75 },
+        "芝3000": { "speed": 1.10, "lead": 1.20, "closing": 0.85 },
+        "芝3200": { "speed": 1.10, "lead": 1.25, "closing": 0.80 },
+        "ダ1200": { "speed": 1.20, "lead": 1.30, "closing": 0.70 },
+        "ダ1400": { "speed": 1.20, "lead": 1.25, "closing": 0.75 },
+        "ダ1800": { "speed": 1.25, "lead": 1.30, "closing": 0.70 },
+        "ダ1900": { "speed": 1.25, "lead": 1.30, "closing": 0.70 }
     },
     "阪神": {
         "芝1200": { "speed": 1.10, "lead": 1.39, "closing": 0.71 },
