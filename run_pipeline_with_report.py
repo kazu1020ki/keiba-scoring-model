@@ -66,7 +66,8 @@ def main():
         "python", "-m", "scoring.score_past5",
         "--race_id", args.race_id,
         "--distance", str(args.distance),
-        "--field_size", str(args.field_size)
+        "--field_size", str(args.field_size),
+        "--surface", args.surface
     ])
 
     # ------------------------------
