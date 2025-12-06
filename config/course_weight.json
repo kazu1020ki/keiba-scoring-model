@@ -16,7 +16,10 @@
         "芝2000": { "speed": 1.00, "lead": 1.35, "closing": 0.70 },
         "芝2200": { "speed": 1.00, "lead": 1.35, "closing": 0.70 },
         "芝2500": { "speed": 1.00, "lead": 1.30, "closing": 0.75 },
-        "芝3600": { "speed": 0.90, "lead": 1.45, "closing": 0.75 }
+        "芝3600": { "speed": 0.90, "lead": 1.45, "closing": 0.75 },
+        "ダ1200": { "speed": 1.20, "lead": 1.35, "closing": 0.70 },
+        "ダ1800": { "speed": 1.25, "lead": 1.40, "closing": 0.65 },
+        "ダ2400": { "speed": 1.30, "lead": 1.40, "closing": 0.60 }
     },
     "京都": {
         "芝1200": { "speed": 1.15, "lead": 1.35, "closing": 0.70 },
@@ -41,10 +44,20 @@
         "芝2000": { "speed": 1.35, "lead": 1.28, "closing": 0.81 },
         "芝2200": { "speed": 1.40, "lead": 1.12, "closing": 0.82 },
         "芝2400": { "speed": 1.45, "lead": 1.19, "closing": 0.87 },
-        "芝3000": { "speed": 1.50, "lead": 1.01, "closing": 0.76 }
+        "芝3000": { "speed": 1.50, "lead": 1.01, "closing": 0.76 },
+        "ダ1200": { "speed": 1.20, "lead": 1.35, "closing": 0.65 },
+        "ダ1400": { "speed": 1.20, "lead": 1.30, "closing": 0.75 },
+        "ダ1800": { "speed": 1.30, "lead": 1.35, "closing": 0.70 }
     },
     "中京": {
-        "ダ1800": { "speed": 1.30, "lead": 1.20, "closing": 0.85 }
+        "芝1200": { "speed": 1.15, "lead": 1.25, "closing": 0.80 },
+        "芝1400": { "speed": 1.15, "lead": 1.20, "closing": 0.85 },
+        "芝1600": { "speed": 1.20, "lead": 1.15, "closing": 0.90 },
+        "芝2000": { "speed": 1.20, "lead": 1.20, "closing": 0.85 },
+        "芝2200": { "speed": 1.15, "lead": 1.10, "closing": 0.95 },
+        "ダ1200": { "speed": 1.20, "lead": 1.40, "closing": 0.60 },
+        "ダ1400": { "speed": 1.20, "lead": 1.30, "closing": 0.70 },
+        "ダ1800": { "speed": 1.30, "lead": 1.20, "closing": 0.85 },
+        "ダ1900": { "speed": 1.25, "lead": 1.30, "closing": 0.70 }
     }
-
 }
