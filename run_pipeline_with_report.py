@@ -1,4 +1,3 @@
-# run_pipeline_with_report.py（新仕様対応版）
 import argparse
 import subprocess
 from pathlib import Path
@@ -16,7 +15,6 @@ def run(cmd: list):
 
 
 def generate_report(race_id, distance, course):
-    """course スコア CSV から簡易レポート生成"""
     csv_path = ASSETS / f"race_{race_id}_{distance}m_{course}_course.csv"
     df = pd.read_csv(csv_path)
 
@@ -25,6 +23,7 @@ def generate_report(race_id, distance, course):
     df["モデル順位"] = df[score_col].rank(ascending=False, method="dense").astype(int)
     df = df.sort_values("モデル順位")
 
+    # ★ 修正点：Path の結合は / を使う
     out_path = REPORT_DIR / f"report_{race_id}_{distance}m_{course}.txt"
 
     with out_path.open("w", encoding="utf-8") as f:
@@ -36,49 +35,64 @@ def generate_report(race_id, distance, course):
 
         for _, row in df.iterrows():
             f.write(
-                f"{row['モデル順位']}位 | "
-                f"{row['馬名']} | "
-                f"スコア: {round(row[score_col],3)}\n"
+                f"{row['モデル順位']}位 | {row['馬名']} | スコア: {round(row[score_col],3)}\n"
             )
 
     print(f"レポート生成: {out_path}")
-
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--race_id", required=True)
     parser.add_argument("--distance", type=int, required=True)
-    parser.add_argument("--course", required=True)      # 東京 / 中山 / …
-    parser.add_argument("--surface", required=True)     # 芝 / ダ
+    parser.add_argument("--course", required=True)
+    parser.add_argument("--surface", required=True)
     parser.add_argument("--field_size", type=int, required=True)
+
+    # ★ 当日バイアス（5段階）
+    parser.add_argument("--bias_speed", type=int, default=0)
+    parser.add_argument("--bias_lead", type=int, default=0)
+    parser.add_argument("--bias_closing", type=int, default=0)
+
+    # ★ スキップ機能
+    parser.add_argument("--skip_crawl", action="store_true")
+    parser.add_argument("--skip_score", action="store_true")
 
     args = parser.parse_args()
 
     # ------------------------------
     # 1. 出馬表クロール（必要なら）
     # ------------------------------
-    run(["python", "-m", "crawl.crawl_shutuba", "--race_id", args.race_id])
+    if not args.skip_crawl:
+        run(["python", "-m", "crawl.crawl_shutuba", "--race_id", args.race_id])
+    else:
+        print("🚫 crawl スキップ")
 
     # ------------------------------
-    # 2. 過去5走スコア（score_past5） 新仕様
+    # 2. 過去5走スコア（必要なら）
     # ------------------------------
-    run([
-        "python", "-m", "scoring.score_past5",
-        "--race_id", args.race_id,
-        "--distance", str(args.distance),
-        "--field_size", str(args.field_size),
-        "--surface", args.surface
-    ])
+    if not args.skip_score:
+        run([
+            "python", "-m", "scoring.score_past5",
+            "--race_id", args.race_id,
+            "--distance", str(args.distance),
+            "--field_size", str(args.field_size),
+            "--surface", args.surface
+        ])
+    else:
+        print("🚫 score_past5 スキップ")
 
     # ------------------------------
-    # 3. コース適性スコア（course_score） 新仕様
+    # 3. コース適性スコア（バイアス付き）
     # ------------------------------
     run([
         "python", "-m", "course.course_score",
         "--race_id", args.race_id,
         "--distance", str(args.distance),
         "--course", args.course,
-        "--surface", args.surface
+        "--surface", args.surface,
+        "--bias_speed", str(args.bias_speed),
+        "--bias_lead", str(args.bias_lead),
+        "--bias_closing", str(args.bias_closing)
     ])
 
     # ------------------------------

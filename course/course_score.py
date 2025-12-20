@@ -1,5 +1,5 @@
 # course/course_score.py
-# 偏差値化 + raw併存 + 列名互換性維持版
+# 偏差値化 + raw併存 + 当日バイアス対応版
 
 import argparse
 import json
@@ -26,7 +26,7 @@ def load_course_weight(course: str, surface: str, distance: int):
     if key not in config[course]:
         raise ValueError(f"{course} の '{key}' 用の重み設定がありません")
 
-    return config[course][key]  # speed / lead / closing
+    return config[course][key]
 
 
 def to_deviation(series: pd.Series) -> pd.Series:
@@ -49,10 +49,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--race_id", required=True)
     parser.add_argument("--distance", type=int, required=True)
-    parser.add_argument("--course", required=True)   # 東京・中山・京都など
-    parser.add_argument("--surface", required=True)  # 芝 or ダ
+    parser.add_argument("--course", required=True)
+    parser.add_argument("--surface", required=True)
+
+    # ★ 追加：5段階バイアス（-2〜+2）
+    parser.add_argument("--bias_speed", type=int, default=0)
+    parser.add_argument("--bias_lead", type=int, default=0)
+    parser.add_argument("--bias_closing", type=int, default=0)
     args = parser.parse_args()
 
+    # 入力CSV
     INPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_scores.csv"
     OUTPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_{args.course}_course.csv"
 
@@ -67,7 +73,33 @@ def main():
     w_close = weight["closing"]
 
     # ------------------------------
-    #   一次スコア（raw）計算
+    #   当日バイアス → 係数変換
+    # ------------------------------
+    bias_map = {
+        -2: 0.90,
+        -1: 0.95,
+         0: 1.00,
+         1: 1.05,
+         2: 1.10
+    }
+
+    # 入力値が範囲外ならエラー
+    for val in [args.bias_speed, args.bias_lead, args.bias_closing]:
+        if val not in bias_map:
+            raise ValueError("bias must be -2, -1, 0, 1, or 2")
+
+    # 補正を適用
+    w_speed *= bias_map[args.bias_speed]
+    w_lead *= bias_map[args.bias_lead]
+    w_close *= bias_map[args.bias_closing]
+
+    print("=== 使用重み（補正後） ===")
+    print(f"speed:  {w_speed}")
+    print(f"lead:   {w_lead}")
+    print(f"closing:{w_close}")
+
+    # ------------------------------
+    #   raw スコア計算
     # ------------------------------
     raw_scores = []
 
@@ -83,10 +115,10 @@ def main():
         raw = sp * w_speed + ld * w_lead + cl * w_close
         raw_scores.append(round(raw, 4))
 
-    df["raw_course_score"] = raw_scores  # デバッグ用
+    df["raw_course_score"] = raw_scores
 
     # ------------------------------
-    #   最終偏差値（コース適性スコア）
+    #   最終偏差値
     # ------------------------------
     df[f"{args.course}適性スコア"] = to_deviation(df["raw_course_score"])
 
