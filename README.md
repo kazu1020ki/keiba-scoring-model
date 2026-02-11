@@ -17,97 +17,97 @@
 
 ---
 
-## 🧠 設計思想（Design Philosophy）
+## 🧠 現在の仕様（コード準拠）
 
-### 1. 過去5走の「標準化」
+この README は、現在の実装（`run_pipeline_with_report.py` / `scoring` / `course`）に合わせて更新しています。
 
-レースごとの条件差（距離・ペース・通過順位など）を吸収し、  
-馬の能力だけを比較できるように正規化します。
+### 1) 入力とメタ情報の扱い
 
-#### ✔ 距離換算
+- 入力の正は `assets/race_*_raw.csv`（`crawl` の出力）
+- レース条件（競馬場・芝ダ・距離・頭数）は **ファイル名から抽出**
+- `run_pipeline_with_report.py` は raw が無ければ crawl を実行し、
+  `score_past5` → `course_score` → レポート生成まで一括実行
 
-- 「芝1400」「ダ1200」「1600m」を自動で数値パース  
-- 各馬のタイムを **予想レースの距離へ換算**  
-- 1F 差ごとに **+0.4 秒の距離補正**
+### 2) 過去5走スコア（`scoring/score_past5.py`）
 
-#### ✔ ペース補正
+3軸（speed / closing / lead）を算出し、最後に偏差値化します。
 
-- 上がり：ハイ → プラス補正 / スロー → マイナス補正  
-- 先行力：ハイ → 前有利補正 / スロー → 前不利補正  
-- レース文脈を反映した公平な評価を実施
+#### speed
+- 同馬場（芝/ダ一致）の過去走のみ使用
+- タイムを目標距離へ換算（距離比 + 馬場別距離補正）
+- 距離差が大きい走ほど信頼度を減衰
+- とくに **短距離→長距離** の延長ローテは追加減衰
+- 5走の古いレースほど寄与を下げる（近走ウェイト）
+- 集約は単純平均ではなく **加重平均（信頼度 × 近走ウェイト）**
 
----
+#### closing
+- `60 - 上り` をベースに、ペース補正を加算
+- 通過順（1角→最終角）からの位置取り改善度を反映
+- 集約は speed 同様に加重平均
 
-### 2. 3つの能力スコア
+#### lead
+- 通過順の先頭側割合を、
+  「序盤位置（重め） + 最終位置（軽め）」で合成
+- ペース補正を反映
+- 先行して大きく失速したケースを減点
+- 集約は speed / closing と同じ加重平均
 
-#### 🏃‍♂️ スピードスコア（Speed）
+### 3) コース適性スコア（`course/course_score.py`）
 
-- 距離換算後のタイムを平均化  
-- `200 - adjusted_time` で高速ほど高スコアへ統一
+- `config/course_weight.json` の `speed / lead / closing` 重みを読込
+- 当日バイアス（-2〜2）で各重みを倍率補正
+- 補正後の重みを比率化し、`lead` の過剰支配を cap
+- `speed_dev / lead_dev / closing_dev` の線形和を計算し、最終偏差値化
 
-#### 🏁 上がり力スコア（Closing）
+### 4) 出力
 
-- 上がり（末脚）の速さを基準化  
-- ペース補正込みで「切れ味」を反映
-
-#### 🚀 先行力スコア（Lead）
-
-- 通過順位の先頭側割合（先行力の定量化）  
-- フルゲート基準の割合化  
-- ペース補正で「本質的な先行力」を抽出
-
----
-
-### 3. コース適性は重み付けで補正
-
-コースによって重要な能力が違うため、  
-**speed / lead / closing に重み付けして総合スコアを算出** します。
-
-例：東京競馬場（上がり性能がより重要）
-
-    speed   × 1.2
-    lead    × 0.7
-    closing × 1.4
-
-これにより、
-
-**「能力 × コース特性」 = 最適スコア**
-
-が得られます。
+- 中間: `assets/race_{race_id}_{course}_{surface}{distance}m_5runs_scores.csv`
+- 最終: `assets/race_{race_id}_{course}_{surface}{distance}m_course_scores.csv`
+- レポート: `reports/report_{race_no}R_{course}_{surface}{distance}m_{race_id}.txt`
 
 ---
 
-## 📁 推奨プロジェクト構成
+## 🚀 実行方法
 
-    競馬予想モデル/
-    ├── crawl/         # ネット競馬クロール
-    ├── preprocess/    # データ前処理（距離パース・標準化）
-    ├── scoring/       # speed/lead/closing の3スコア算出
-    ├── course/        # コース適性スコア付与
-    ├── predict/       # 勝率・期待値モデル（将来）
-    └── assets/        # CSV, 学習データ
+### フルパイプライン
+
+```bash
+python run_pipeline_with_report.py --race_id <race_id>
+```
+
+任意で当日バイアスを指定できます。
+
+```bash
+python run_pipeline_with_report.py \
+  --race_id <race_id> \
+  --bias_speed 0 --bias_lead 1 --bias_closing -1
+```
+
+### 単体実行（例）
+
+```bash
+python -m scoring.score_past5 --race_id <race_id> --input_csv assets/race_..._raw.csv
+python -m course.course_score --race_id <race_id> --course 東京 --surface 芝 --distance 1600
+```
 
 ---
 
-## 📈 今後の拡張計画
+## 📁 ディレクトリ
 
-- レースレベル補正（相手強さ）  
-- 馬場指数（含水率・脚抜き）  
-- 斤量補正（+2kg → 0.1〜0.2秒）  
-- 騎手 × 調教師 × 馬 × コースの複合スコア  
-- 脚質モデル（位置取りシェイプ）  
-- LightGBM / XGBoost による勝率推定モデル  
-- 期待値自動算出 → 購入判断の自動化
+```text
+crawl/        # 出走表・過去走データ取得
+preprocess/   # 距離/タイム/通過順などの変換ユーティリティ
+scoring/      # 過去5走から speed/closing/lead を算出
+course/       # コース重みを適用して最終スコア化
+predict/      # 補助スクリプト
+config/       # コース重み設定
+assets/       # 中間CSV・出力CSV
+reports/      # 最終テキストレポート
+```
 
 ---
 
 ## 📝 補足
 
-この README は「目的・設計思想」に絞っています。  
-詳細仕様や API ドキュメントは `docs/` に分離可能です。
-
----
-
-## 👍 ライセンス
-
-自由に利用・改変できます。（後で方針に合わせて変更可能）
+- 本READMEは「実装に追随する仕様書」の位置づけです。
+- 仕様変更時は `README.md` と `config/course_weight.json` を合わせて更新してください。
