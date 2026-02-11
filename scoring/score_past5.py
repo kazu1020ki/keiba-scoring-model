@@ -1,13 +1,17 @@
-# scoring/score_past5.py
-# 偏差値化 + raw併存 + 中立補正 + leadクリップ + 有効数字統一版
-
 import argparse
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
 from preprocess.utils import (
-    parse_distance, time_to_seconds, convert_distance_time, parse_position
+    parse_distance,
+    time_to_seconds,
+    convert_distance_time,
+    parse_position,
+)
+from preprocess.race_filename import (
+    parse_race_meta_from_filename,
+    STAGE_RAW,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -30,40 +34,49 @@ def detect_surface(dist_raw: str):
 
 
 def to_deviation(series: pd.Series) -> pd.Series:
-    """
-    レース内偏差値化（0はNaN扱い → 最後に50補正）
-    小数第2位に丸める
-    """
-    # 0 はデータ無しとして扱う
     s = series.replace(0, np.nan)
-
     mean = s.mean()
     std = s.std()
-
     if std == 0 or pd.isna(std):
         std = 0.01
-
     dev = 50 + 10 * ((s - mean) / std)
-
-    # データ無し(=NaN)は偏差値50に補正
-    dev = dev.fillna(50)
-
-    # 小数第2位に統一
-    return dev.round(2)
+    return dev.fillna(50).round(2)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--race_id", required=True)
-    parser.add_argument("--distance", type=int, required=True)
-    parser.add_argument("--field_size", type=int, default=16)
-    parser.add_argument("--surface", required=True)  # 予想馬場(芝/ダ)
+    parser.add_argument(
+        "--input_csv",
+        required=True,
+        help="crawl で生成された raw.csv のパス",
+    )
     args = parser.parse_args()
 
-    INPUT = ASSETS / f"race_{args.race_id}_raw.csv"
-    OUTPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_scores.csv"
+    input_path = Path(args.input_csv)
+    if not input_path.exists():
+        raise FileNotFoundError(f"input_csv が存在しません: {input_path}")
 
-    df = pd.read_csv(INPUT)
+    # ------------------------------
+    # filename → meta（唯一の正）
+    # ------------------------------
+    meta = parse_race_meta_from_filename(input_path.name)
+    if meta["stage"] != STAGE_RAW:
+        raise RuntimeError("raw.csv を入力してください")
+
+    distance = meta["distance"]
+    surface = meta["surface"]
+    field_size = meta["field_size"]
+
+    print(
+        f"🧠 score_past5 条件: "
+        f"{surface}{distance}m / {field_size}頭"
+    )
+
+    # ------------------------------
+    # 入力 CSV 読み込み
+    # ------------------------------
+    df = pd.read_csv(input_path)
 
     raw_speed_list = []
     raw_closing_list = []
@@ -83,15 +96,15 @@ def main():
 
             surface_past = detect_surface(dist_raw)
 
-            # ---------------------------
-            # speed / closing → 馬場一致のみ
-            # ---------------------------
-            if surface_past == args.surface:
+            # speed / closing（馬場一致のみ）
+            if surface_past == surface:
                 dist = parse_distance(dist_raw)
                 time_sec = time_to_seconds(time_raw)
 
                 if dist and time_sec:
-                    adj = convert_distance_time(time_sec, dist, args.distance, surface_past)
+                    adj = convert_distance_time(
+                        time_sec, dist, distance, surface_past
+                    )
                     if adj:
                         speeds.append(adj)
 
@@ -100,20 +113,13 @@ def main():
                     base += PACE_CORRECTION_CLOSING.get(pace, 0)
                     closings.append(base)
 
-            # ---------------------------
-            # lead → 馬場無関係で使う
-            # ---------------------------
-            pos = parse_position(passage, field_size=args.field_size)
+            # lead（馬場無関係）
+            pos = parse_position(passage, field_size=field_size)
             if pos is not None:
                 new_lead = pos + PACE_CORRECTION_LEAD_NEW.get(pace, 0)
-
-                # ★ リード値は 0〜1 にクリップ
                 new_lead = max(0, min(1, new_lead))
                 leads.append(new_lead)
 
-        # -------------------------------
-        # raw スコア（空なら 0）
-        # -------------------------------
         raw_speed = 200 - np.mean(speeds) if speeds else 0
         raw_closing = np.mean(closings) if closings else 0
         raw_lead = np.mean(leads) if leads else 0
@@ -122,9 +128,9 @@ def main():
         raw_closing_list.append(round(raw_closing, 4))
         raw_lead_list.append(round(raw_lead, 4))
 
-    # -------------------------------
-    # DataFrame 化
-    # -------------------------------
+    # ------------------------------
+    # 出力
+    # ------------------------------
     out = pd.DataFrame({
         "馬名": df["馬名"],
         "raw_speed": raw_speed_list,
@@ -132,18 +138,18 @@ def main():
         "raw_lead": raw_lead_list,
     })
 
-    # -------------------------------
-    # 偏差値列（dev）
-    # -------------------------------
     out["speed_dev"] = to_deviation(out["raw_speed"])
     out["closing_dev"] = to_deviation(out["raw_closing"])
     out["lead_dev"] = to_deviation(out["raw_lead"])
 
-    # -------------------------------
-    # 出力
-    # -------------------------------
-    out.to_csv(OUTPUT, index=False, encoding="utf-8-sig")
-    print(f"✅ 偏差値スコア出力完了: {OUTPUT}")
+    output_path = (
+        ASSETS /
+        f"race_{meta['race_id']}_{meta['course']}_"
+        f"{surface}{distance}m_5runs_scores.csv"
+    )
+
+    out.to_csv(output_path, index=False, encoding="utf-8-sig")
+    print(f"✅ score_past5 出力完了: {output_path}")
 
 
 if __name__ == "__main__":

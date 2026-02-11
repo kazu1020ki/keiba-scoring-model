@@ -5,6 +5,7 @@
         "芝1800": { "speed": 1.20, "lead": 1.10, "closing": 1.30 },
         "芝2000": { "speed": 1.20, "lead": 1.10, "closing": 1.25 },
         "芝2400": { "speed": 1.15, "lead": 1.05, "closing": 1.30 },
+        "ダ1300": { "speed": 1.20, "lead": 1.22, "closing": 0.88 },
         "ダ1400": { "speed": 1.20, "lead": 1.15, "closing": 0.95 },
         "ダ1600": { "speed": 1.25, "lead": 1.10, "closing": 1.20 },
         "ダ2100": { "speed": 1.30, "lead": 1.20, "closing": 0.90 }
@@ -59,5 +60,14 @@
         "ダ1400": { "speed": 1.20, "lead": 1.30, "closing": 0.70 },
         "ダ1800": { "speed": 1.30, "lead": 1.20, "closing": 0.85 },
         "ダ1900": { "speed": 1.25, "lead": 1.30, "closing": 0.70 }
+    },
+    "小倉": {
+        "芝1200": { "speed": 1.20, "lead": 1.40, "closing": 0.60 },
+        "芝1800": { "speed": 1.15, "lead": 1.30, "closing": 0.75 },
+        "芝2000": { "speed": 1.10, "lead": 1.25, "closing": 0.85 },
+        "芝2600": { "speed": 1.05, "lead": 1.30, "closing": 0.80 },
+        "ダ1000": { "speed": 1.30, "lead": 1.50, "closing": 0.50 },
+        "ダ1700": { "speed": 1.20, "lead": 1.35, "closing": 0.65 },
+        "ダ2400": { "speed": 1.10, "lead": 1.25, "closing": 0.85 }
     }
 }
