@@ -72,3 +72,23 @@ def parse_position(pos_str, field_size: int):
         return 1 - (first / field_size)
     except Exception:
         return None
+
+
+def parse_passage_positions(pos_str):
+    """
+    '12-10-8-5' のような通過順文字列を整数配列へ変換する。
+    変換できない場合は None を返す。
+    """
+    if pd.isna(pos_str):
+        return None
+
+    tokens = [t.strip() for t in str(pos_str).split("-") if t.strip()]
+    if not tokens:
+        return None
+
+    try:
+        positions = [int(t) for t in tokens]
+    except Exception:
+        return None
+
+    return positions or None
