@@ -1,6 +1,3 @@
-# course/course_score.py
-# 偏差値化 + raw併存 + 当日バイアス対応版
-
 import argparse
 import json
 import pandas as pd
@@ -12,8 +9,13 @@ ASSETS = PROJECT_ROOT / "assets"
 CONFIG_DIR = PROJECT_ROOT / "config"
 
 
+# ==============================
+# utils
+# ==============================
 def load_course_weight(course: str, surface: str, distance: int):
-    """コース重みを config/course_weight.json から読み込む"""
+    """
+    コース重みを config/course_weight.json から読み込む
+    """
     config_path = CONFIG_DIR / "course_weight.json"
     with config_path.open("r", encoding="utf-8") as f:
         config = json.load(f)
@@ -30,7 +32,9 @@ def load_course_weight(course: str, surface: str, distance: int):
 
 
 def to_deviation(series: pd.Series) -> pd.Series:
-    """一次スコアを偏差値化（std=0対策・NaN=50補正、round(2)）"""
+    """
+    一次スコアを偏差値化（std=0対策・NaN=50補正）
+    """
     s = series.replace(0, np.nan)
 
     mean = s.mean()
@@ -40,32 +44,46 @@ def to_deviation(series: pd.Series) -> pd.Series:
         std = 0.01
 
     dev = 50 + 10 * ((s - mean) / std)
-    dev = dev.fillna(50)
-
-    return dev.round(2)
+    return dev.fillna(50).round(2)
 
 
+# ==============================
+# main
+# ==============================
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--race_id", required=True)
-    parser.add_argument("--distance", type=int, required=True)
     parser.add_argument("--course", required=True)
     parser.add_argument("--surface", required=True)
+    parser.add_argument("--distance", type=int, required=True)
 
-    # ★ 追加：5段階バイアス（-2〜+2）
+    # ★ 当日バイアス（任意）
     parser.add_argument("--bias_speed", type=int, default=0)
     parser.add_argument("--bias_lead", type=int, default=0)
     parser.add_argument("--bias_closing", type=int, default=0)
+
     args = parser.parse_args()
 
-    # 入力CSV
-    INPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_scores.csv"
-    OUTPUT = ASSETS / f"race_{args.race_id}_{args.distance}m_{args.course}_course.csv"
+    # ------------------------------
+    # 入出力ファイル（新命名規則）
+    # ------------------------------
+    INPUT = ASSETS / (
+        f"race_{args.race_id}_{args.course}_"
+        f"{args.surface}{args.distance}m_5runs_scores.csv"
+    )
+
+    OUTPUT = ASSETS / (
+        f"race_{args.race_id}_{args.course}_"
+        f"{args.surface}{args.distance}m_course_scores.csv"
+    )
+
+    if not INPUT.exists():
+        raise FileNotFoundError(f"入力CSVが存在しません: {INPUT}")
 
     df = pd.read_csv(INPUT)
 
     # ------------------------------
-    #   コース重み読み込み
+    # コース重み読み込み
     # ------------------------------
     weight = load_course_weight(args.course, args.surface, args.distance)
     w_speed = weight["speed"]
@@ -73,33 +91,31 @@ def main():
     w_close = weight["closing"]
 
     # ------------------------------
-    #   当日バイアス → 係数変換
+    # 当日バイアス → 係数変換
     # ------------------------------
     bias_map = {
         -2: 0.90,
         -1: 0.95,
          0: 1.00,
          1: 1.05,
-         2: 1.10
+         2: 1.10,
     }
 
-    # 入力値が範囲外ならエラー
     for val in [args.bias_speed, args.bias_lead, args.bias_closing]:
         if val not in bias_map:
-            raise ValueError("bias must be -2, -1, 0, 1, or 2")
+            raise ValueError("bias は -2, -1, 0, 1, 2 のいずれか")
 
-    # 補正を適用
     w_speed *= bias_map[args.bias_speed]
     w_lead *= bias_map[args.bias_lead]
     w_close *= bias_map[args.bias_closing]
 
     print("=== 使用重み（補正後） ===")
-    print(f"speed:  {w_speed}")
-    print(f"lead:   {w_lead}")
-    print(f"closing:{w_close}")
+    print(f"speed:   {w_speed}")
+    print(f"lead:    {w_lead}")
+    print(f"closing: {w_close}")
 
     # ------------------------------
-    #   raw スコア計算
+    # raw コーススコア計算
     # ------------------------------
     raw_scores = []
 
@@ -118,12 +134,12 @@ def main():
     df["raw_course_score"] = raw_scores
 
     # ------------------------------
-    #   最終偏差値
+    # 偏差値化
     # ------------------------------
     df[f"{args.course}適性スコア"] = to_deviation(df["raw_course_score"])
 
     # ------------------------------
-    #   保存
+    # 出力
     # ------------------------------
     df.to_csv(OUTPUT, index=False, encoding="utf-8-sig")
     print(f"✅ コース適性スコア出力完了: {OUTPUT}")
