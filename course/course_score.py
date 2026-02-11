@@ -47,6 +47,34 @@ def to_deviation(series: pd.Series) -> pd.Series:
     return dev.fillna(50).round(2)
 
 
+def rebalance_weights(w_speed: float, w_lead: float, w_close: float):
+    """
+    コース重みを比率化し、lead が過剰優位になるケースを緩和する。
+    """
+    total = w_speed + w_lead + w_close
+    if total <= 0:
+        raise ValueError("weight の合計が 0 以下です")
+
+    w_speed /= total
+    w_lead /= total
+    w_close /= total
+
+    lead_cap = 0.42
+    if w_lead > lead_cap:
+        excess = w_lead - lead_cap
+        w_lead = lead_cap
+
+        redistribute = w_speed + w_close
+        if redistribute <= 0:
+            w_speed += excess / 2
+            w_close += excess / 2
+        else:
+            w_speed += excess * (w_speed / redistribute)
+            w_close += excess * (w_close / redistribute)
+
+    return w_speed, w_lead, w_close
+
+
 # ==============================
 # main
 # ==============================
@@ -108,6 +136,12 @@ def main():
     w_speed *= bias_map[args.bias_speed]
     w_lead *= bias_map[args.bias_lead]
     w_close *= bias_map[args.bias_closing]
+
+    w_speed, w_lead, w_close = rebalance_weights(
+        w_speed=w_speed,
+        w_lead=w_lead,
+        w_close=w_close,
+    )
 
     print("=== 使用重み（補正後） ===")
     print(f"speed:   {w_speed}")
