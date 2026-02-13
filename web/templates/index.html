@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>競馬スコア表示UI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>競馬スコア表示UI</h1>
+      <p>race_id を入力すると、スコア算出パイプラインを実行して順位を表示します。</p>
+
+      <form id="predict-form">
+        <label for="race_id">race_id</label>
+        <input id="race_id" name="race_id" type="text" inputmode="numeric" required placeholder="例: 202405020811" />
+        <button type="submit">取得する</button>
+      </form>
+
+      <section id="status" class="status"></section>
+
+      <section id="result" class="result hidden">
+        <h2 id="race-title"></h2>
+        <table>
+          <thead>
+            <tr>
+              <th>順位</th>
+              <th>馬名</th>
+              <th>スコア</th>
+            </tr>
+          </thead>
+          <tbody id="ranking-body"></tbody>
+        </table>
+      </section>
+
+      <details>
+        <summary>実行ログ</summary>
+        <pre id="log-output"></pre>
+      </details>
+    </main>
+
+    <script>
+      const form = document.getElementById("predict-form");
+      const status = document.getElementById("status");
+      const result = document.getElementById("result");
+      const raceTitle = document.getElementById("race-title");
+      const rankingBody = document.getElementById("ranking-body");
+      const logOutput = document.getElementById("log-output");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const raceId = document.getElementById("race_id").value.trim();
+        status.textContent = "計算中です...";
+        result.classList.add("hidden");
+        rankingBody.innerHTML = "";
+        logOutput.textContent = "";
+
+        try {
+          const response = await fetch("/api/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ race_id: raceId }),
+          });
+
+          const data = await response.json();
+          logOutput.textContent = data.log || "";
+
+          if (!response.ok) {
+            status.textContent = `エラー: ${data.error || "不明なエラー"}`;
+            return;
+          }
+
+          const race = data.race;
+          raceTitle.textContent = `race_id: ${race.race_id} / ${race.course} ${race.surface}${race.distance}m`;
+
+          data.ranking.forEach((item) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${item.rank}</td><td>${item.horse}</td><td>${item.score}</td>`;
+            rankingBody.appendChild(tr);
+          });
+
+          result.classList.remove("hidden");
+          status.textContent = `取得完了: ${data.ranking.length}頭`;
+        } catch (error) {
+          status.textContent = `通信エラー: ${error}`;
+        }
+      });
+    </script>
+  </body>
+</html>
