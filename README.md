@@ -65,10 +65,6 @@
 - 最終: `assets/race_{race_id}_{course}_{surface}{distance}m_course_scores.csv`
 - レポート: `reports/report_{race_no}R_{course}_{surface}{distance}m_{race_id}.txt`
 
----
-
-## 🚀 実行方法
-
 ### フルパイプライン
 
 ```bash
@@ -89,6 +85,28 @@ python run_pipeline_with_report.py \
 `webapp/` に FastAPI + React(Material UI) ベースのローカルUIを追加しています。
 
 #### 1. バックエンドAPI起動
+## 🚀 実行方法
+
+### フルパイプライン
+
+```bash
+python run_pipeline_with_report.py --race_id <race_id>
+```
+
+任意で当日バイアスを指定できます。
+
+```bash
+python run_pipeline_with_report.py \
+  --race_id <race_id> \
+  --bias_speed 0 --bias_lead 1 --bias_closing -1
+```
+
+### 単体実行（例）
+
+```bash
+python -m scoring.score_past5 --race_id <race_id> --input_csv assets/race_..._raw.csv
+python -m course.course_score --race_id <race_id> --course 東京 --surface 芝 --distance 1600
+```
 
 ```bash
 python -m venv .venv
@@ -122,6 +140,17 @@ npm run dev
 ```bash
 python -m scoring.score_past5 --race_id <race_id> --input_csv assets/race_..._raw.csv
 python -m course.course_score --race_id <race_id> --course 東京 --surface 芝 --distance 1600
+## 📁 ディレクトリ
+
+```text
+crawl/        # 出走表・過去走データ取得
+preprocess/   # 距離/タイム/通過順などの変換ユーティリティ
+scoring/      # 過去5走から speed/closing/lead を算出
+course/       # コース重みを適用して最終スコア化
+predict/      # 補助スクリプト
+config/       # コース重み設定
+assets/       # 中間CSV・出力CSV
+reports/      # 最終テキストレポート
 ```
 
 ---
