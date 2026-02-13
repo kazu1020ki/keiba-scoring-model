@@ -92,6 +92,20 @@ python -m course.course_score --race_id <race_id> --course 東京 --surface 芝 
 
 ---
 
+
+## 🖥️ race_id入力で結果表示するUI
+
+`web/app.py` でローカルWeb UIを起動できます。
+
+```bash
+python web/app.py
+```
+
+詳細な環境構築手順（フロントエンド/バックエンド分離説明を含む）は
+`docs/local_frontend_backend_setup.md` を参照してください。
+
+---
+
 ## 📁 ディレクトリ
 
 ```text
@@ -100,6 +114,7 @@ preprocess/   # 距離/タイム/通過順などの変換ユーティリティ
 scoring/      # 過去5走から speed/closing/lead を算出
 course/       # コース重みを適用して最終スコア化
 predict/      # 補助スクリプト
+web/          # race_id入力UI（Flask + HTML/CSS/JS）
 config/       # コース重み設定
 assets/       # 中間CSV・出力CSV
 reports/      # 最終テキストレポート
