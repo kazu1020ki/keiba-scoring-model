@@ -65,8 +65,26 @@
 - 最終: `assets/race_{race_id}_{course}_{surface}{distance}m_course_scores.csv`
 - レポート: `reports/report_{race_no}R_{course}_{surface}{distance}m_{race_id}.txt`
 
----
+### フルパイプライン
 
+```bash
+python run_pipeline_with_report.py --race_id <race_id>
+```
+
+任意で当日バイアスを指定できます。
+
+```bash
+python run_pipeline_with_report.py \
+  --race_id <race_id> \
+  --bias_speed 0 --bias_lead 1 --bias_closing -1
+```
+
+
+### ローカルフロントエンド（Material UI）
+
+`webapp/` に FastAPI + React(Material UI) ベースのローカルUIを追加しています。
+
+#### 1. バックエンドAPI起動
 ## 🚀 実行方法
 
 ### フルパイプライン
@@ -88,6 +106,51 @@ python run_pipeline_with_report.py \
 ```bash
 python -m scoring.score_past5 --race_id <race_id> --input_csv assets/race_..._raw.csv
 python -m course.course_score --race_id <race_id> --course 東京 --surface 芝 --distance 1600
+```
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r webapp/requirements.txt
+pip install pandas numpy pytest requests beautifulsoup4 lxml
+uvicorn webapp.server:app --reload --host 127.0.0.1 --port 8000
+```
+
+#### 2. フロントエンド起動
+
+別ターミナルで以下を実行します。
+
+```bash
+cd webapp/frontend
+npm install
+npm run dev
+```
+
+ブラウザで `http://127.0.0.1:5173` を開くと、`race_id` 入力フォームから予測実行できます。
+
+#### 3. UIでできること
+
+- race_id（12桁）入力で予測パイプラインを実行
+- レポートの「モデル順位」部分を見やすく一覧表示
+- レポート全文表示
+- 最近実行した race_id 履歴（クリック再利用）
+
+### 単体実行（例）
+
+```bash
+python -m scoring.score_past5 --race_id <race_id> --input_csv assets/race_..._raw.csv
+python -m course.course_score --race_id <race_id> --course 東京 --surface 芝 --distance 1600
+## 📁 ディレクトリ
+
+```text
+crawl/        # 出走表・過去走データ取得
+preprocess/   # 距離/タイム/通過順などの変換ユーティリティ
+scoring/      # 過去5走から speed/closing/lead を算出
+course/       # コース重みを適用して最終スコア化
+predict/      # 補助スクリプト
+config/       # コース重み設定
+assets/       # 中間CSV・出力CSV
+reports/      # 最終テキストレポート
 ```
 
 ---
