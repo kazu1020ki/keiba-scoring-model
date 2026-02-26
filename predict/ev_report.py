@@ -24,6 +24,13 @@ class EVConfig:
     wide_top_k: int = 5
     wide_priority_top_n: int = 6
     random_seed: int = 42
+    race_min_buy_count: int = 2
+    race_min_top_ev: float = 0.12
+    race_min_top_risk: float = 0.05
+    race_min_top3_p_adj_sum: float = 0.45
+    bet_top_n: int = 2
+    second_bet_min_risk: float = 0.05
+    second_bet_max_risk_gap: float = 0.03
 
     beta_bands: tuple[tuple[float, float], ...] = (
         (10.0, 0.92),
@@ -183,6 +190,8 @@ def generate_ev_reports(race_id: str, config: EVConfig = EVConfig()) -> tuple[Pa
     merged["score_rank"] = merged["score"].rank(method="min", ascending=False)
     merged["pop_rank"] = merged["win_odds"].rank(method="min", ascending=True)
 
+    merged = _attach_race_gate_and_bet_plan(merged, config)
+
     if merged["win_odds"].isna().any():
         logging.warning("win_odds 欠損/不正値あり: ev を NaN として NO_BUY で出力します")
 
@@ -195,6 +204,57 @@ def generate_ev_reports(race_id: str, config: EVConfig = EVConfig()) -> tuple[Pa
 
     wide_out = _build_wide_sheet(race_id, merged, config)
     return win_out, wide_out
+
+
+def _attach_race_gate_and_bet_plan(merged: pd.DataFrame, config: EVConfig) -> pd.DataFrame:
+    out = merged.copy()
+    buy_rows = out[out["decision"] == "BUY"].copy()
+
+    buy_count = int(len(buy_rows))
+    top_ev = float(buy_rows["ev_win"].max()) if buy_count else np.nan
+    top_risk = float(buy_rows["ev_risk_adj"].max()) if buy_count else np.nan
+    top3_p_adj_sum = float(
+        buy_rows.sort_values("p_adj", ascending=False)["p_adj"].head(3).sum()
+    ) if buy_count else 0.0
+
+    gate_rules = {
+        "buy_count": buy_count >= config.race_min_buy_count,
+        "top_ev": pd.notna(top_ev) and top_ev >= config.race_min_top_ev,
+        "top_risk": pd.notna(top_risk) and top_risk >= config.race_min_top_risk,
+        "top3_p_adj_sum": top3_p_adj_sum >= config.race_min_top3_p_adj_sum,
+    }
+    race_action = "BET" if all(gate_rules.values()) else "SKIP"
+    gate_reason = "PASS" if race_action == "BET" else "FAIL:" + ",".join(
+        [k for k, ok in gate_rules.items() if not ok]
+    )
+
+    out["race_action"] = race_action
+    out["gate_reason"] = gate_reason
+    out["race_buy_count"] = buy_count
+    out["race_top_ev"] = top_ev
+    out["race_top_risk"] = top_risk
+    out["race_top3_p_adj_sum"] = top3_p_adj_sum
+
+    out["recommended_bet"] = "NO_BET"
+    out["bet_rank"] = np.nan
+    if race_action == "BET" and buy_count:
+        ranked = buy_rows.sort_values(
+            ["ev_risk_adj", "ev_win", "p_adj", "umaban"],
+            ascending=[False, False, False, True],
+        ).reset_index()
+        main_idx = int(ranked.loc[0, "index"])
+        out.loc[main_idx, "recommended_bet"] = "BET_MAIN"
+        out.loc[main_idx, "bet_rank"] = 1
+
+        if buy_count >= 2 and config.bet_top_n >= 2:
+            second_risk = float(ranked.loc[1, "ev_risk_adj"])
+            risk_gap = float(ranked.loc[0, "ev_risk_adj"] - ranked.loc[1, "ev_risk_adj"])
+            if second_risk >= config.second_bet_min_risk and risk_gap <= config.second_bet_max_risk_gap:
+                second_idx = int(ranked.loc[1, "index"])
+                out.loc[second_idx, "recommended_bet"] = "BET_SUB"
+                out.loc[second_idx, "bet_rank"] = 2
+
+    return out
 
 
 def _build_wide_sheet(race_id: str, merged: pd.DataFrame, config: EVConfig) -> Path:
@@ -280,6 +340,13 @@ def main():
     parser.add_argument("--n_sim", type=int, default=EVConfig.n_sim)
     parser.add_argument("--m_wide", type=float, default=EVConfig.m_wide)
     parser.add_argument("--random_seed", type=int, default=EVConfig.random_seed)
+    parser.add_argument("--race_min_buy_count", type=int, default=EVConfig.race_min_buy_count)
+    parser.add_argument("--race_min_top_ev", type=float, default=EVConfig.race_min_top_ev)
+    parser.add_argument("--race_min_top_risk", type=float, default=EVConfig.race_min_top_risk)
+    parser.add_argument("--race_min_top3_p_adj_sum", type=float, default=EVConfig.race_min_top3_p_adj_sum)
+    parser.add_argument("--bet_top_n", type=int, default=EVConfig.bet_top_n)
+    parser.add_argument("--second_bet_min_risk", type=float, default=EVConfig.second_bet_min_risk)
+    parser.add_argument("--second_bet_max_risk_gap", type=float, default=EVConfig.second_bet_max_risk_gap)
     args = parser.parse_args()
 
     config = EVConfig(
@@ -288,6 +355,13 @@ def main():
         n_sim=args.n_sim,
         m_wide=args.m_wide,
         random_seed=args.random_seed,
+        race_min_buy_count=args.race_min_buy_count,
+        race_min_top_ev=args.race_min_top_ev,
+        race_min_top_risk=args.race_min_top_risk,
+        race_min_top3_p_adj_sum=args.race_min_top3_p_adj_sum,
+        bet_top_n=args.bet_top_n,
+        second_bet_min_risk=args.second_bet_min_risk,
+        second_bet_max_risk_gap=args.second_bet_max_risk_gap,
     )
 
     win_out, wide_out = generate_ev_reports(args.race_id, config)

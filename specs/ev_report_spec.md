@@ -69,6 +69,39 @@
 - `score_rank`: `score` 降順の順位。
 - `pop_rank`: `win_odds` 昇順（人気順に近い）の順位。
 
+
+### 1.4 レース採択と買い方基準（単勝）
+
+- `race_action`
+  - **意味**: レースを買うかどうかの最終判定（`BET` / `SKIP`）。
+  - **役割**: 馬単位判定の上に、レース単位の採択基準を重ねる。
+
+- `gate_reason`
+  - **意味**: レース採択の通過/不通過理由。
+  - **役割**: どの条件で `SKIP` になったかを可視化する。
+
+- `race_buy_count`
+  - **意味**: `decision=BUY` の頭数。
+
+- `race_top_ev`
+  - **意味**: BUY馬の中で最大の `ev_win`。
+
+- `race_top_risk`
+  - **意味**: BUY馬の中で最大の `ev_risk_adj`。
+
+- `race_top3_p_adj_sum`
+  - **意味**: BUY馬の `p_adj` 上位3頭合計。
+
+- レース採択条件（既定）
+  - `race_buy_count >= race_min_buy_count`
+  - `race_top_ev >= race_min_top_ev`
+  - `race_top_risk >= race_min_top_risk`
+  - `race_top3_p_adj_sum >= race_min_top3_p_adj_sum`
+
+- `recommended_bet` / `bet_rank`
+  - **意味**: 推奨買い目（`BET_MAIN` / `BET_SUB` / `NO_BET`）と優先順位。
+  - **役割**: `race_action=BET` のとき、`ev_risk_adj` 上位から主軸1頭＋条件を満たす場合のみ副軸2頭目を提案。
+
 ---
 
 ## 2. ワイド事前計算（`outputs/race_{race_id}_wide_input.csv`）

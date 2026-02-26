@@ -55,7 +55,10 @@ def test_generate_ev_reports_outputs_expected_files(tmp_path: Path, monkeypatch)
     assert wide_out.exists()
 
     win_df = pd.read_csv(win_out)
-    assert set(["ev_win", "m_required", "decision", "ev_risk_adj", "p_mkt", "cap_ratio_used"]).issubset(win_df.columns)
+    assert set([
+        "ev_win", "m_required", "decision", "ev_risk_adj", "p_mkt", "cap_ratio_used",
+        "race_action", "gate_reason", "race_buy_count", "race_top_ev", "recommended_bet",
+    ]).issubset(win_df.columns)
     assert len(win_df) == 6
     assert win_df.loc[win_df["horse_name"] == "F", "decision"].iloc[0] == "NO_BUY"
 
@@ -66,6 +69,11 @@ def test_generate_ev_reports_outputs_expected_files(tmp_path: Path, monkeypatch)
     # 大穴側はキャップが効き、調整後確率が上限以下になる
     row_e = win_df.loc[win_df["horse_name"] == "E"].iloc[0]
     assert row_e["p_adj"] <= row_e["p_mkt"] * row_e["cap_ratio_used"] + 1e-12
+
+    assert set(win_df["race_action"]) <= {"BET", "SKIP"}
+    assert set(win_df["recommended_bet"]) <= {"NO_BET", "BET_MAIN", "BET_SUB"}
+    if (win_df["race_action"] == "BET").any():
+        assert (win_df["recommended_bet"] == "BET_MAIN").sum() == 1
 
     wide_df = pd.read_csv(wide_out)
     assert len(wide_df) == 10
