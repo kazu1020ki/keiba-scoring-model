@@ -65,7 +65,7 @@
 ### 5) 期待値レポート（`predict/ev_report.py`）
 
 - 指数を softmax で確率化（温度 `T` は引数で調整可）
-- 単勝はオッズ帯ごとの `beta` で保守化した確率 `p_adj` を作り、`EV = p_adj * odds - 1` を全頭計算
+- 単勝はオッズ帯ごとの `beta` で保守化した確率 `p_mix` を作り、市場オッズ由来の上限（`1/odds` × cap比率）で `p_adj` をキャップ
 - 単勝はオッズ帯ごとの要求期待値 `m_required` を満たした馬のみ `BUY`、それ以外は `NO_BUY`
 - ワイドは指数上位5頭の10ペアを作り、Plackett–Luce 準拠の3着内同時成立確率 `p_wide` をシミュレーションで推定
 - `race_{race_id}_wide_input.csv` の `wide_odds` を手入力した後は `python -m predict.calc_wide_ev` で `ev_wide/decision` を再計算可能

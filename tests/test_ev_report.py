@@ -55,9 +55,17 @@ def test_generate_ev_reports_outputs_expected_files(tmp_path: Path, monkeypatch)
     assert wide_out.exists()
 
     win_df = pd.read_csv(win_out)
-    assert set(["ev_win", "m_required", "decision", "ev_risk_adj"]).issubset(win_df.columns)
+    assert set(["ev_win", "m_required", "decision", "ev_risk_adj", "p_mkt", "cap_ratio_used"]).issubset(win_df.columns)
     assert len(win_df) == 6
     assert win_df.loc[win_df["horse_name"] == "F", "decision"].iloc[0] == "NO_BUY"
+
+    # 低オッズ高スコア馬はEVが正になりやすい設定
+    ev_a = win_df.loc[win_df["horse_name"] == "A", "ev_win"].iloc[0]
+    assert ev_a > 0
+
+    # 大穴側はキャップが効き、調整後確率が上限以下になる
+    row_e = win_df.loc[win_df["horse_name"] == "E"].iloc[0]
+    assert row_e["p_adj"] <= row_e["p_mkt"] * row_e["cap_ratio_used"] + 1e-12
 
     wide_df = pd.read_csv(wide_out)
     assert len(wide_df) == 10

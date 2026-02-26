@@ -26,18 +26,26 @@ class EVConfig:
     random_seed: int = 42
 
     beta_bands: tuple[tuple[float, float], ...] = (
-        (10.0, 0.75),
-        (30.0, 0.60),
-        (100.0, 0.45),
+        (10.0, 0.92),
+        (30.0, 0.70),
+        (100.0, 0.50),
         (300.0, 0.30),
         (float("inf"), 0.20),
     )
 
+    cap_ratio_bands: tuple[tuple[float, float], ...] = (
+        (10.0, 1.60),
+        (30.0, 1.20),
+        (100.0, 1.00),
+        (300.0, 0.75),
+        (float("inf"), 0.55),
+    )
+
     m_required_bands: tuple[tuple[float, float], ...] = (
-        (10.0, 0.05),
-        (30.0, 0.10),
+        (10.0, 0.02),
+        (30.0, 0.08),
         (100.0, 0.18),
-        (float("inf"), 0.25),
+        (float("inf"), 0.30),
     )
 
 
@@ -130,10 +138,25 @@ def generate_ev_reports(race_id: str, config: EVConfig = EVConfig()) -> tuple[Pa
     merged["beta_used"] = merged["win_odds"].apply(
         lambda x: _band_value(x, config.beta_bands) if pd.notna(x) else np.nan
     )
-    merged["p_adj"] = np.where(
+    merged["p_mkt"] = np.where(
+        merged["win_odds"].notna() & (merged["win_odds"] > 0),
+        1.0 / merged["win_odds"],
+        np.nan,
+    )
+    merged["cap_ratio_used"] = merged["win_odds"].apply(
+        lambda x: _band_value(x, config.cap_ratio_bands) if pd.notna(x) else np.nan
+    )
+
+    p_mix = np.where(
         merged["win_odds"].notna() & merged["p_raw"].notna() & pd.notna(uniform),
         merged["beta_used"] * merged["p_raw"] + (1 - merged["beta_used"]) * uniform,
         np.nan,
+    )
+    p_cap = merged["p_mkt"] * merged["cap_ratio_used"]
+    merged["p_adj"] = np.where(
+        pd.notna(p_mix) & pd.notna(p_cap),
+        np.minimum(p_mix, p_cap),
+        p_mix,
     )
 
     merged["ev_win"] = np.where(
