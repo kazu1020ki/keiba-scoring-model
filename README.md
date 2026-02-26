@@ -120,5 +120,6 @@ reports/      # 最終テキストレポート
 
 ## 📝 補足
 
+- 期待値ロジックの詳細仕様は `specs/ev_report_spec.md` を参照してください。
 - 本READMEは「実装に追随する仕様書」の位置づけです。
 - 仕様変更時は `README.md` と `config/course_weight.json` を合わせて更新してください。
