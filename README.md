@@ -61,8 +61,20 @@
 
 ### 4) 出力
 
+
+### 5) 期待値レポート（`predict/ev_report.py`）
+
+- 指数を softmax で確率化（温度 `T` は引数で調整可）
+- 単勝はオッズ帯ごとの `beta` で保守化した確率 `p_mix` を作り、市場オッズ由来の上限（`1/odds` × cap比率）で `p_adj` をキャップ
+- 単勝はオッズ帯ごとの要求期待値 `m_required` を満たした馬のみ `BUY`、それ以外は `NO_BUY`
+- 単勝CSVにはレース採択列（`race_action`, `gate_reason`）と推奨買い目列（`recommended_bet`, `bet_rank`）も出力
+- ワイドは指数上位5頭の10ペアを作り、Plackett–Luce 準拠の3着内同時成立確率 `p_wide` をシミュレーションで推定
+- `race_{race_id}_wide_input.csv` の `wide_odds` を手入力した後は `python -m predict.calc_wide_ev` で `ev_wide/decision` を再計算可能
+
 - 中間: `assets/race_{race_id}_{course}_{surface}{distance}m_5runs_scores.csv`
 - 最終: `assets/race_{race_id}_{course}_{surface}{distance}m_course_scores.csv`
+- 単勝期待値: `outputs/race_{race_id}_win_all.csv`
+- ワイド入力シート: `outputs/race_{race_id}_wide_input.csv`
 - レポート: `reports/report_{race_no}R_{course}_{surface}{distance}m_{race_id}.txt`
 
 ---
@@ -109,5 +121,6 @@ reports/      # 最終テキストレポート
 
 ## 📝 補足
 
+- 期待値ロジックの詳細仕様は `specs/ev_report_spec.md` を参照してください。
 - 本READMEは「実装に追随する仕様書」の位置づけです。
 - 仕様変更時は `README.md` と `config/course_weight.json` を合わせて更新してください。
